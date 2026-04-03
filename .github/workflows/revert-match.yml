@@ -1,0 +1,66 @@
+name: Revert Match Scores
+
+on:
+  workflow_dispatch:
+    inputs:
+      match_number:
+        description: 'Match number to revert (e.g. 5)'
+        required: true
+        type: string
+
+jobs:
+  revert:
+    name: Delete Match Scores from Firebase
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Revert match scores
+        env:
+          FIREBASE_KEY: ${{ secrets.FIREBASE_KEY }}
+        run: |
+          python - <<'PYTHON'
+          import os, base64, tempfile, sys
+          import firebase_admin
+          from firebase_admin import credentials, firestore
+
+          match_num = "${{ github.event.inputs.match_number }}".strip()
+          if not match_num.isdigit():
+              print(f"ERROR: '{match_num}' is not a valid match number")
+              sys.exit(1)
+
+          key_json = base64.b64decode(os.environ['FIREBASE_KEY']).decode('utf-8')
+          tmp = tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False)
+          tmp.write(key_json); tmp.flush(); tmp.close()
+          cred = credentials.Certificate(tmp.name)
+          firebase_admin.initialize_app(cred, {'projectId': 'the-gentlemen-s-game-2026'})
+          db = firestore.client()
+
+          doc_id = f'match_{match_num}'
+          deleted = []
+
+          for col in ('matchScores', 'matchBreakdowns', 'matchMeta'):
+              ref = db.collection(col).document(doc_id)
+              if ref.get().exists:
+                  ref.delete()
+                  deleted.append(col)
+                  print(f"  Deleted {col}/{doc_id}")
+              else:
+                  print(f"  {col}/{doc_id} not found - skipped")
+
+          if deleted:
+              print(f"Reverted Match {match_num}. Deleted from: {', '.join(deleted)}")
+          else:
+              print(f"Match {match_num} had no data to delete.")
+          PYTHON
