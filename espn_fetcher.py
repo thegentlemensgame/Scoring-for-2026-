@@ -21,6 +21,83 @@ HEADERS = {
 # MATCH DISCOVERY
 # ─────────────────────────────────────────────────────────────
 
+BROWSER_HEADERS = {
+    'User-Agent': (
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) '
+        'AppleWebKit/537.36 (KHTML, like Gecko) '
+        'Chrome/124.0.0.0 Safari/537.36'
+    ),
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+    'Accept-Language': 'en-US,en;q=0.5',
+}
+
+
+def _parse_teams_from_slug(slug):
+    """
+    Extract team abbreviations from a slug like
+    'royal-challengers-bengaluru-vs-sunrisers-hyderabad-1st-match-1527674'.
+    Returns (home_abbr, away_abbr) or ('', '').
+    """
+    m = re.match(r'^(.+?)-vs-(.+?)-\d+(?:st|nd|rd|th)-match', slug)
+    if not m:
+        return '', ''
+    team1_raw = m.group(1).replace('-', ' ')
+    team2_raw = m.group(2).replace('-', ' ')
+    team1 = TEAM_ALIASES.get(team1_raw, '')
+    team2 = TEAM_ALIASES.get(team2_raw, '')
+    return team1, team2
+
+
+def _fetch_matches_from_results_page():
+    """
+    Fallback when the ESPN schedule API is blocked.
+    Scrapes the series match-results HTML page to find completed match slugs.
+    Returns the same list format as fetch_completed_matches().
+    """
+    url = f"https://www.espncricinfo.com/series/{ESPN_SERIES_SLUG}/match-results"
+    print(f"  🔍 Fetching series results page: {url}")
+    try:
+        r = requests.get(url, headers=BROWSER_HEADERS, timeout=30)
+        r.raise_for_status()
+        html = r.text
+    except Exception as e:
+        print(f"  ⚠️  Series results page fallback failed: {e}")
+        return []
+
+    # Extract unique match slugs from scorecard links
+    pattern = rf'/series/{re.escape(ESPN_SERIES_SLUG)}/([^/"\'>\s]+)/full-scorecard'
+    slugs = list(dict.fromkeys(re.findall(pattern, html)))  # deduplicate, preserve order
+
+    if not slugs:
+        print(f"  ⚠️  No match slugs found on series results page")
+        return []
+
+    print(f"  📋 Series results page found {len(slugs)} completed match slug(s)")
+
+    completed = []
+    for slug in slugs:
+        home_abbr, away_abbr = _parse_teams_from_slug(slug)
+        match_num, gw = _detect_match_num(slug, home_abbr, away_abbr)
+
+        # Match ID is the trailing number in the slug
+        id_m = re.search(r'-(\d+)$', slug)
+        match_id = int(id_m.group(1)) if id_m else None
+
+        if match_id:
+            completed.append({
+                'match_id':   match_id,
+                'match_slug': slug,
+                'match_num':  match_num,
+                'gw':         gw,
+                'home':       home_abbr,
+                'away':       away_abbr,
+                'status':     'result',
+                'winner':     None,
+            })
+
+    return completed
+
+
 def fetch_completed_matches():
     """
     Hit ESPN schedule API and return a list of completed matches.
@@ -40,8 +117,17 @@ def fetch_completed_matches():
     url = ESPN_SCHEDULE_API.format(series_id=ESPN_SERIES_ID)
     try:
         r = requests.get(url, headers=HEADERS, timeout=30)
+        if r.status_code == 403:
+            print(f"  ⚠️  ESPN schedule API blocked (403) — falling back to series results page")
+            return _fetch_matches_from_results_page()
         r.raise_for_status()
         data = r.json()
+    except requests.exceptions.HTTPError as e:
+        if hasattr(r, 'status_code') and r.status_code == 403:
+            print(f"  ⚠️  ESPN schedule API blocked (403) — falling back to series results page")
+            return _fetch_matches_from_results_page()
+        print(f"  ⚠️  ESPN schedule API failed: {e}")
+        return []
     except Exception as e:
         print(f"  ⚠️  ESPN schedule API failed: {e}")
         return []
