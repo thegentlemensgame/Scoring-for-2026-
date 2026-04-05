@@ -316,7 +316,7 @@ def run_daily_pipeline(db):
             "GG Auto Scorer — No matches found",
             "ESPN API returned no completed matches. Check the schedule."
         )
-        return
+        return True  # Not an error — just nothing to do today
 
     espn_cache = get_espn_cache(db)
 
