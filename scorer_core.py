@@ -510,7 +510,7 @@ def _find_fielder(name_text, batting_team, all_player_names, is_keeper=False):
     Handles: full name, surname only, â keeper prefix, multi-word names.
     Fielder CANNOT be on the batting team.
     """
-    clean       = re.sub(r'[â ()\[\]]', '', name_text).strip()
+    clean       = re.sub('[\u2020()\[\]]', '', name_text).strip()
     # Detect keeper from † symbol even if caller did not flag it
     if '†' in name_text:
         is_keeper = True
