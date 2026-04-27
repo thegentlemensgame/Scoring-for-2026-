@@ -26,6 +26,7 @@ ci = CricinfoClient()
 # Build lookup tables from ALL_PLAYERS
 ID_TO_NAME  = {str(pid): p['name'] for pid, p in ALL_PLAYERS.items()}
 NAME_TO_ID  = {p['name']: str(pid) for pid, p in ALL_PLAYERS.items()}
+WK_NAMES_LOWER = {p['name'].lower() for p in ALL_PLAYERS.values() if p.get('cat') == 'Wicketkeeper'}
 
 
 # âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
@@ -355,10 +356,10 @@ def fetch_match_stats(series_slug, match_slug, match_id=None):
                     else:
                         print(f"    â ï¸  UNMATCHED catch: '{m.group(1).strip()}' in '{dismissal}'")
 
-            # Stumped
+            # Stumped (always wicketkeeper)
             m = re.match(r'st\s+(.+?)\s+b\s+', dismissal, re.IGNORECASE)
             if m:
-                fielder = _find_fielder(m.group(1).strip(), inn_team, all_player_names)
+                fielder = _find_fielder(m.group(1).strip(), inn_team, all_player_names, is_keeper=True)
                 if fielder:
                     player_stats[fielder]['stumpings'] += 1
                     print(f"    ð§¤ stumping: {fielder}")
@@ -503,13 +504,16 @@ def fetch_match_stats(series_slug, match_slug, match_id=None):
     }
 
 
-def _find_fielder(name_text, batting_team, all_player_names):
+def _find_fielder(name_text, batting_team, all_player_names, is_keeper=False):
     """
     Match a fielder name snippet to a player in this match.
     Handles: full name, surname only, â keeper prefix, multi-word names.
     Fielder CANNOT be on the batting team.
     """
     clean       = re.sub(r'[â ()\[\]]', '', name_text).strip()
+    # Detect keeper from † symbol even if caller did not flag it
+    if '†' in name_text:
+        is_keeper = True
     if not clean:
         return None
     clean_lower = clean.lower()
@@ -526,6 +530,13 @@ def _find_fielder(name_text, batting_team, all_player_names):
         # Exact full name
         if clean_lower == pname_lower:
             return pname
+
+        # Keeper catch (†): boost WK players to confidence 4 to break surname ties
+        # e.g. "†Sharma" → Jitesh Sharma (WK) wins over Suyash Sharma (Bowler)
+        if is_keeper and pname_lower in WK_NAMES_LOWER:
+            if any(w in pname_words for w in clean_words):
+                candidates.append((pname, 4))
+                continue
 
         # All words from the fielder text appear in the player name
         if all(w in pname_words for w in clean_words):
