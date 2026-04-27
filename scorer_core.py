@@ -1,6 +1,6 @@
 """
-scorer_core.py — The Gentlemen's Game 2026
-Full scoring pipeline: fetch scorecard → extract stats → calculate points → map players.
+scorer_core.py â The Gentlemen's Game 2026
+Full scoring pipeline: fetch scorecard â extract stats â calculate points â map players.
 Ported from gentlemens_game_scorer_1.py with all Colab-specific code removed.
 """
 
@@ -28,9 +28,9 @@ ID_TO_NAME  = {str(pid): p['name'] for pid, p in ALL_PLAYERS.items()}
 NAME_TO_ID  = {p['name']: str(pid) for pid, p in ALL_PLAYERS.items()}
 
 
-# ─────────────────────────────────────────────────────────────
+# âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 # SCORING FORMULA  (exact port of calc_fantasy_points in Colab)
-# ─────────────────────────────────────────────────────────────
+# âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 def calc_fantasy_points(stats):
     """
@@ -41,7 +41,7 @@ def calc_fantasy_points(stats):
     pts = 0.0
     breakdown = {}
 
-    # ── BATTING ──
+    # ââ BATTING ââ
     runs   = stats.get('runs', 0) or 0
     balls  = stats.get('balls', 0) or 0
     fours  = stats.get('fours', 0) or 0
@@ -70,7 +70,7 @@ def calc_fantasy_points(stats):
             'total': bat_total,
         }
 
-    # ── BOWLING ──
+    # ââ BOWLING ââ
     overs          = stats.get('overs', 0) or 0
     maidens        = stats.get('maidens', 0) or 0
     runs_conceded  = stats.get('runsConceded', 0) or 0
@@ -110,7 +110,7 @@ def calc_fantasy_points(stats):
             'economy': round(economy, 2), 'total': bowl_total,
         }
 
-    # ── FIELDING ──
+    # ââ FIELDING ââ
     catches   = stats.get('catches', 0) or 0
     stumpings = stats.get('stumpings', 0) or 0
     runouts   = stats.get('runouts', 0) or 0
@@ -122,12 +122,12 @@ def calc_fantasy_points(stats):
             'runouts': runouts * 10, 'total': field_total,
         }
 
-    # ── WINNING TEAM BONUS ──
+    # ââ WINNING TEAM BONUS ââ
     if stats.get('isWinner', False):
         pts += 5
         breakdown['win'] = 5
 
-    # ── PLAYER OF THE MATCH ──
+    # ââ PLAYER OF THE MATCH ââ
     if stats.get('isPOTM', False):
         pts += 25
         breakdown['potm'] = 25
@@ -135,9 +135,9 @@ def calc_fantasy_points(stats):
     return round(pts, 1), breakdown
 
 
-# ─────────────────────────────────────────────────────────────
+# âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 # FUZZY NAME MATCHING  (exact port from Colab)
-# ─────────────────────────────────────────────────────────────
+# âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 def fuzzy_match(espn_name, our_players):
     """
@@ -171,7 +171,7 @@ def fuzzy_match(espn_name, our_players):
         if len(candidates) == 1:
             return candidates[0]
         elif len(candidates) > 1:
-            # Multiple surname matches — pick highest confidence
+            # Multiple surname matches â pick highest confidence
             best = max(candidates, key=lambda x: x[1])
             return best
 
@@ -189,9 +189,9 @@ def fuzzy_match(espn_name, our_players):
     return None, 0
 
 
-# ─────────────────────────────────────────────────────────────
+# âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 # FETCH SCORECARD & EXTRACT STATS
-# ─────────────────────────────────────────────────────────────
+# âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 def fetch_match_stats(series_slug, match_slug, match_id=None):
     """
@@ -199,7 +199,7 @@ def fetch_match_stats(series_slug, match_slug, match_id=None):
 
     A. Batting: runs, balls, fours, sixes, isOut
     B. Bowling: overs, maidens, runsConceded, wickets, dots (with sanity cap)
-    C. Fielding: catches, stumpings, runouts (from dismissal text — 2-pass)
+    C. Fielding: catches, stumpings, runouts (from dismissal text â 2-pass)
     D. POTM: 7-method cascade (methods 1-5 in scorecard, 6-7 via espn_fetcher)
     E. Winner: parsed from statusText
 
@@ -212,7 +212,7 @@ def fetch_match_stats(series_slug, match_slug, match_id=None):
             'winner': str | None,
         }
     """
-    print(f"  📡 Fetching scorecard for {match_slug}...")
+    print(f"  ð¡ Fetching scorecard for {match_slug}...")
     scorecard  = ci.match_scorecard(series_slug, match_slug)
     match_info = ci.match_info(series_slug, match_slug)
 
@@ -227,7 +227,7 @@ def fetch_match_stats(series_slug, match_slug, match_id=None):
         'isWinner': False, 'team': '', 'batted': False, 'bowled': False,
     })
 
-    # ── FIRST PASS: collect all player names + teams (for fielding lookup) ──
+    # ââ FIRST PASS: collect all player names + teams (for fielding lookup) ââ
     all_player_names = []   # [(longName, team_abbr), ...]
     seen_names = set()
 
@@ -259,9 +259,9 @@ def fetch_match_stats(series_slug, match_slug, match_id=None):
                 seen_names.add(name)
                 all_player_names.append((name, other_team))
 
-    print(f"  📋 {len(all_player_names)} players detected in match")
+    print(f"  ð {len(all_player_names)} players detected in match")
 
-    # ── SECOND PASS: batting, bowling, fielding ──
+    # ââ SECOND PASS: batting, bowling, fielding ââ
 
     for innings in innings_list:
         inn_team   = _abbr(innings.get('team', {}))
@@ -306,19 +306,19 @@ def fetch_match_stats(series_slug, match_slug, match_id=None):
             s['runsConceded'] += bowler.get('conceded', 0) or 0
             s['wickets']      += bowler.get('wickets', 0) or 0
 
-            # Dots — ESPN uses 'dots', '0s', or 'dot_balls'
+            # Dots â ESPN uses 'dots', '0s', or 'dot_balls'
             dots_val = bowler.get('dots') or bowler.get('0s') or bowler.get('dot_balls') or 0
 
-            # Sanity cap: dots ≤ balls bowled
+            # Sanity cap: dots â¤ balls bowled
             full_ov    = int(bowler.get('overs', 0) or 0)
             part_b     = round(((bowler.get('overs', 0) or 0) - full_ov) * 10)
             balls_bwld = full_ov * 6 + part_b
             if dots_val > balls_bwld:
-                print(f"    ⚠️  {name}: dots ({dots_val}) > balls ({balls_bwld}), capping")
+                print(f"    â ï¸  {name}: dots ({dots_val}) > balls ({balls_bwld}), capping")
                 dots_val = balls_bwld
             s['dots'] += dots_val
 
-        # C. FIELDING — parse dismissal texts
+        # C. FIELDING â parse dismissal texts
         for batsman in innings.get('inningBatsmen', []):
             if batsman.get('battedType') == 'DNB':
                 continue
@@ -335,7 +335,7 @@ def fetch_match_stats(series_slug, match_slug, match_id=None):
             if not dismissal or dismissal.lower() in ('not out', 'retired hurt', 'retired not out', ''):
                 continue
 
-            print(f"      📝 {batter_name}: {dismissal}")
+            print(f"      ð {batter_name}: {dismissal}")
 
             # Caught & bowled
             m = re.match(r'c\s+(?:&|and)\s+b\s+(.+)', dismissal, re.IGNORECASE)
@@ -343,7 +343,7 @@ def fetch_match_stats(series_slug, match_slug, match_id=None):
                 fielder = _find_fielder(m.group(1).strip(), inn_team, all_player_names)
                 if fielder:
                     player_stats[fielder]['catches'] += 1
-                    print(f"    🧤 c&b: {fielder}")
+                    print(f"    ð§¤ c&b: {fielder}")
             else:
                 # Caught by fielder
                 m = re.match(r'c\s+(.+?)\s+b\s+', dismissal, re.IGNORECASE)
@@ -351,9 +351,9 @@ def fetch_match_stats(series_slug, match_slug, match_id=None):
                     fielder = _find_fielder(m.group(1).strip(), inn_team, all_player_names)
                     if fielder:
                         player_stats[fielder]['catches'] += 1
-                        print(f"    🧤 catch: {fielder}")
+                        print(f"    ð§¤ catch: {fielder}")
                     else:
-                        print(f"    ⚠️  UNMATCHED catch: '{m.group(1).strip()}' in '{dismissal}'")
+                        print(f"    â ï¸  UNMATCHED catch: '{m.group(1).strip()}' in '{dismissal}'")
 
             # Stumped
             m = re.match(r'st\s+(.+?)\s+b\s+', dismissal, re.IGNORECASE)
@@ -361,7 +361,7 @@ def fetch_match_stats(series_slug, match_slug, match_id=None):
                 fielder = _find_fielder(m.group(1).strip(), inn_team, all_player_names)
                 if fielder:
                     player_stats[fielder]['stumpings'] += 1
-                    print(f"    🧤 stumping: {fielder}")
+                    print(f"    ð§¤ stumping: {fielder}")
 
             # Run out
             m = re.search(r'run\s+out\s*\(([^)]+)\)', dismissal, re.IGNORECASE)
@@ -372,9 +372,9 @@ def fetch_match_stats(series_slug, match_slug, match_id=None):
                         fielder = _find_fielder(part, inn_team, all_player_names)
                         if fielder:
                             player_stats[fielder]['runouts'] += 1
-                            print(f"    🏃 runout: {fielder}")
+                            print(f"    ð runout: {fielder}")
 
-    # ── D. PLAYER OF THE MATCH — 7-method cascade ──
+    # ââ D. PLAYER OF THE MATCH â 7-method cascade ââ
     potm_name    = None
     potm_pending = False
 
@@ -387,7 +387,7 @@ def fetch_match_stats(series_slug, match_slug, match_id=None):
             p = award.get('player', {})
             potm_name = p.get('longName') or p.get('name')
             if potm_name:
-                print(f"    → POTM method 1 (player_awards): {potm_name}")
+                print(f"    â POTM method 1 (player_awards): {potm_name}")
                 break
 
     # Method 2: match_data.playerOfTheMatch
@@ -396,11 +396,11 @@ def fetch_match_stats(series_slug, match_slug, match_id=None):
         if isinstance(pom, list) and pom:
             potm_name = pom[0].get('longName') or pom[0].get('name')
             if potm_name:
-                print(f"    → POTM method 2 (match.playerOfTheMatch): {potm_name}")
+                print(f"    â POTM method 2 (match.playerOfTheMatch): {potm_name}")
         elif isinstance(pom, dict):
             potm_name = pom.get('longName') or pom.get('name')
             if potm_name:
-                print(f"    → POTM method 2 (match.playerOfTheMatch dict): {potm_name}")
+                print(f"    â POTM method 2 (match.playerOfTheMatch dict): {potm_name}")
 
     # Method 3: scan all match_data keys for player+match combo
     if not potm_name:
@@ -411,7 +411,7 @@ def fetch_match_stats(series_slug, match_slug, match_id=None):
                 elif isinstance(val, dict):
                     potm_name = val.get('longName') or val.get('name', '')
                 if potm_name:
-                    print(f"    → POTM method 3 (match_data['{key}']): {potm_name}")
+                    print(f"    â POTM method 3 (match_data['{key}']): {potm_name}")
                     break
 
     # Method 4: content.matchPlayerAwards
@@ -420,7 +420,7 @@ def fetch_match_stats(series_slug, match_slug, match_id=None):
             p = award.get('player', {})
             potm_name = p.get('longName') or p.get('name')
             if potm_name:
-                print(f"    → POTM method 4 (content.matchPlayerAwards): {potm_name}")
+                print(f"    â POTM method 4 (content.matchPlayerAwards): {potm_name}")
                 break
 
     # Method 5: content.supportInfo
@@ -432,7 +432,7 @@ def fetch_match_stats(series_slug, match_slug, match_id=None):
         if isinstance(pom, dict):
             potm_name = pom.get('longName') or pom.get('name')
             if potm_name:
-                print(f"    → POTM method 5 (supportInfo): {potm_name}")
+                print(f"    â POTM method 5 (supportInfo): {potm_name}")
 
     # Method 6: ESPN match summary API
     if not potm_name and match_id:
@@ -449,7 +449,7 @@ def fetch_match_stats(series_slug, match_slug, match_id=None):
         if potm_name in player_stats:
             player_stats[potm_name]['isPOTM'] = True
             potm_resolved = potm_name
-            print(f"  🏆 POTM: {potm_name}")
+            print(f"  ð POTM: {potm_name}")
         else:
             # Surname fallback
             potm_surname = potm_name.split()[-1].lower()
@@ -457,23 +457,23 @@ def fetch_match_stats(series_slug, match_slug, match_id=None):
                 if potm_surname in pname.lower():
                     player_stats[pname]['isPOTM'] = True
                     potm_resolved = pname
-                    print(f"  🏆 POTM (surname match): {pname}")
+                    print(f"  ð POTM (surname match): {pname}")
                     break
             if not potm_resolved:
-                print(f"  ⚠️  POTM '{potm_name}' could not be matched. Will retry next run.")
+                print(f"  â ï¸  POTM '{potm_name}' could not be matched. Will retry next run.")
                 potm_pending = True
     else:
-        print(f"  ⚠️  All 7 POTM methods failed. Will score without POTM and retry next run.")
+        print(f"  â ï¸  All 7 POTM methods failed. Will score without POTM and retry next run.")
         potm_pending = True
 
-    # ── E. WINNING TEAM BONUS ──
+    # ââ E. WINNING TEAM BONUS ââ
     status_text = (match_data.get('statusText', '') or '').lower()
     winner_abbr = None
     m = re.search(r'(\w+)\s+won\b', status_text)
     if m:
         raw = m.group(1).lower()
         winner_abbr = TEAM_ALIASES.get(raw, m.group(1).upper())
-        print(f"  🏆 Winner: {winner_abbr}")
+        print(f"  ð Winner: {winner_abbr}")
 
     if winner_abbr:
         wcount = 0
@@ -481,7 +481,7 @@ def fetch_match_stats(series_slug, match_slug, match_id=None):
             if pstats.get('team', '').upper() == winner_abbr:
                 pstats['isWinner'] = True
                 wcount += 1
-        print(f"  ✅ {wcount} players get +5 winning bonus")
+        print(f"  â {wcount} players get +5 winning bonus")
 
     # Teams
     teams = match_data.get('teams', [])
@@ -506,10 +506,10 @@ def fetch_match_stats(series_slug, match_slug, match_id=None):
 def _find_fielder(name_text, batting_team, all_player_names):
     """
     Match a fielder name snippet to a player in this match.
-    Handles: full name, surname only, †keeper prefix, multi-word names.
+    Handles: full name, surname only, â keeper prefix, multi-word names.
     Fielder CANNOT be on the batting team.
     """
-    clean       = re.sub(r'[†()\[\]]', '', name_text).strip()
+    clean       = re.sub(r'[â ()\[\]]', '', name_text).strip()
     if not clean:
         return None
     clean_lower = clean.lower()
@@ -532,6 +532,16 @@ def _find_fielder(name_text, batting_team, all_player_names):
             candidates.append((pname, 3))
             continue
 
+        # Initial + surname match: "J Sharma" -> "Jitesh Sharma" (confidence 3)
+        # Prevents ambiguity between same-surname teammates (e.g. Jitesh vs Suyash Sharma)
+        if len(clean_words) >= 2 and len(pname_words) >= 2:
+            last_ok = clean_words[-1] == pname_words[-1]
+            first_is_initial = len(clean_words[0]) == 1
+            first_initial_ok = first_is_initial and pname_words[0].startswith(clean_words[0])
+            if last_ok and first_initial_ok:
+                candidates.append((pname, 3))
+                continue
+
         # Surname match (last word)
         if clean_words[-1] == pname_words[-1]:
             candidates.append((pname, 2))
@@ -551,16 +561,16 @@ def _find_fielder(name_text, batting_team, all_player_names):
     return top_matches[0][0]  # Return best (or first at equal confidence)
 
 
-# ─────────────────────────────────────────────────────────────
+# âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 # MAP PLAYERS + CALCULATE POINTS
-# ─────────────────────────────────────────────────────────────
+# âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 def score_match(fetch_result, espn_to_id_cache=None):
     """
-    Map ESPN names → our player IDs and compute fantasy points.
+    Map ESPN names â our player IDs and compute fantasy points.
 
     fetch_result: return value from fetch_match_stats()
-    espn_to_id_cache: dict {espn_name: str(pid)} — accumulated across runs (from Firebase)
+    espn_to_id_cache: dict {espn_name: str(pid)} â accumulated across runs (from Firebase)
 
     Returns:
         {
@@ -584,7 +594,7 @@ def score_match(fetch_result, espn_to_id_cache=None):
             if pid and conf > 0.7:
                 espn_to_id_cache[espn_name] = pid
                 our_name = ID_TO_NAME.get(pid, '?')
-                print(f"    ✅ Mapped: {espn_name} → {our_name} (id:{pid}, {conf:.0%})")
+                print(f"    â Mapped: {espn_name} â {our_name} (id:{pid}, {conf:.0%})")
             else:
                 pid = None
 
@@ -615,19 +625,19 @@ def score_match(fetch_result, espn_to_id_cache=None):
             'breakdown':     breakdown,
         }
 
-    print(f"\n  📊 Scored {len(scores)} players, {len(unmatched)} unmatched")
+    print(f"\n  ð Scored {len(scores)} players, {len(unmatched)} unmatched")
     if unmatched:
-        print(f"  ⚠️  Unmatched: {', '.join(unmatched)}")
+        print(f"  â ï¸  Unmatched: {', '.join(unmatched)}")
 
     # Top scorers
     top = sorted(scores.items(), key=lambda x: x[1]['points'], reverse=True)[:8]
-    print(f"\n  🏆 TOP SCORERS:")
+    print(f"\n  ð TOP SCORERS:")
     for pid, d in top:
         details = []
         if d['runs'] > 0:       details.append(f"{d['runs']}r({d['ballsFaced']}b)")
         if d['wickets'] > 0:    details.append(f"{d['wickets']}w")
         if d['catches'] > 0:    details.append(f"{d['catches']}ct")
-        if d.get('isMoM'):      details.append("🏆POTM")
+        if d.get('isMoM'):      details.append("ðPOTM")
         if d.get('isWinner'):   details.append("+5WIN")
         print(f"      {d['points']:>6}pts  {d['espnName']:<25} {' '.join(details)}")
 
