@@ -1,6 +1,6 @@
 """
-auto_scorer.py — The Gentlemen's Game 2026
-Main pipeline: discover → diff → score → write → log → email.
+auto_scorer.py â The Gentlemen's Game 2026
+Main pipeline: discover â diff â score â write â log â email.
 Runs every midnight IST via GitHub Actions (cron 0 18 * * * UTC).
 Can also be triggered manually for a specific match URL.
 """
@@ -28,9 +28,9 @@ from espn_fetcher import fetch_completed_matches
 from scorer_core import fetch_match_stats, score_match
 
 
-# ─────────────────────────────────────────────────────────────
+# âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 # FIREBASE INIT
-# ─────────────────────────────────────────────────────────────
+# âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 def init_firebase():
     """
@@ -56,9 +56,9 @@ def init_firebase():
     return firestore.client()
 
 
-# ─────────────────────────────────────────────────────────────
+# âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 # FIREBASE HELPERS
-# ─────────────────────────────────────────────────────────────
+# âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 def get_scored_match_nums(db):
     """Return set of match numbers already scored in Firebase."""
@@ -69,7 +69,7 @@ def get_scored_match_nums(db):
             if num.isdigit():
                 scored.add(int(num))
     except Exception as e:
-        print(f"  ⚠️  Could not read matchScores: {e}")
+        print(f"  â ï¸  Could not read matchScores: {e}")
     return scored
 
 
@@ -89,7 +89,7 @@ def get_potm_pending_matches(db):
 
 
 def get_espn_cache(db):
-    """Load accumulated ESPN name → player ID mapping from Firebase."""
+    """Load accumulated ESPN name â player ID mapping from Firebase."""
     try:
         doc = db.collection('season').document('playerMapping').get()
         if doc.exists:
@@ -100,13 +100,13 @@ def get_espn_cache(db):
 
 
 def save_espn_cache(db, cache):
-    """Persist updated ESPN name → player ID mapping to Firebase."""
+    """Persist updated ESPN name â player ID mapping to Firebase."""
     try:
         db.collection('season').document('playerMapping').set(
             {'espn_to_id': cache}, merge=True
         )
     except Exception as e:
-        print(f"  ⚠️  Could not save ESPN cache: {e}")
+        print(f"  â ï¸  Could not save ESPN cache: {e}")
 
 
 def write_match_to_firebase(db, match_num, scores, potm_pending, fetch_result):
@@ -114,11 +114,11 @@ def write_match_to_firebase(db, match_num, scores, potm_pending, fetch_result):
     Write matchScores/match_N and matchBreakdowns/match_N to Firebase.
     Mirrors the exact structure the existing HTML reads.
     """
-    # matchScores/match_N  →  {pid: points, ...}
+    # matchScores/match_N  â  {pid: points, ...}
     score_data = {pid: s['points'] for pid, s in scores.items()}
     db.collection('matchScores').document(f'match_{match_num}').set(score_data)
 
-    # matchBreakdowns/match_N  →  {pid: {raw stats + _result}, ...}
+    # matchBreakdowns/match_N  â  {pid: {raw stats + _result}, ...}
     breakdown_data = {}
     for pid, s in scores.items():
         breakdown_data[pid] = {
@@ -141,7 +141,7 @@ def write_match_to_firebase(db, match_num, scores, potm_pending, fetch_result):
         }
     db.collection('matchBreakdowns').document(f'match_{match_num}').set(breakdown_data)
 
-    # matchMeta/match_N  →  flags, timestamps, match info
+    # matchMeta/match_N  â  flags, timestamps, match info
     meta = {
         'matchNum':     match_num,
         'gw':           MATCH_NUM_TO_GW.get(match_num),
@@ -155,7 +155,7 @@ def write_match_to_firebase(db, match_num, scores, potm_pending, fetch_result):
     }
     db.collection('matchMeta').document(f'match_{match_num}').set(meta)
 
-    print(f"  ✅ Firebase updated: matchScores/match_{match_num} + matchBreakdowns/match_{match_num}")
+    print(f"  â Firebase updated: matchScores/match_{match_num} + matchBreakdowns/match_{match_num}")
 
 
 def retry_potm_for_match(db, match_num, match_id, match_slug, espn_cache):
@@ -166,20 +166,20 @@ def retry_potm_for_match(db, match_num, match_id, match_slug, espn_cache):
     from espn_fetcher import fetch_potm_from_summary_api, fetch_potm_from_page_html
     from scorer_core import fuzzy_match, ID_TO_NAME, calc_fantasy_points
 
-    print(f"\n  🔁 Retrying POTM for Match {match_num}...")
+    print(f"\n  ð Retrying POTM for Match {match_num}...")
 
     potm_name = fetch_potm_from_summary_api(match_id) or fetch_potm_from_page_html(match_slug)
     if not potm_name:
-        print(f"  ⏳ POTM still not found for Match {match_num}")
+        print(f"  â³ POTM still not found for Match {match_num}")
         return False
 
     # Find player ID
     pid, conf = fuzzy_match(potm_name, ID_TO_NAME)
     if not pid or conf < 0.7:
-        print(f"  ⚠️  POTM '{potm_name}' could not be mapped to a player ID")
+        print(f"  â ï¸  POTM '{potm_name}' could not be mapped to a player ID")
         return False
 
-    print(f"  🏆 POTM resolved: {potm_name} (id:{pid})")
+    print(f"  ð POTM resolved: {potm_name} (id:{pid})")
 
     # Update matchBreakdowns: add isMoM=True and bump _result
     bd_ref = db.collection('matchBreakdowns').document(f'match_{match_num}')
@@ -210,7 +210,7 @@ def retry_potm_for_match(db, match_num, match_id, match_slug, espn_cache):
                 {pid: new_pts}, merge=True
             )
         else:
-            print(f"  ⚠️  Player id {pid} not found in matchBreakdowns/match_{match_num}")
+            print(f"  â ï¸  Player id {pid} not found in matchBreakdowns/match_{match_num}")
 
     # Clear potm_pending flag
     db.collection('matchMeta').document(f'match_{match_num}').set(
@@ -218,13 +218,13 @@ def retry_potm_for_match(db, match_num, match_id, match_slug, espn_cache):
         merge=True
     )
 
-    print(f"  ✅ POTM retry complete for Match {match_num}")
+    print(f"  â POTM retry complete for Match {match_num}")
     return True
 
 
-# ─────────────────────────────────────────────────────────────
+# âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 # EMAIL NOTIFICATION
-# ─────────────────────────────────────────────────────────────
+# âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 def send_email(subject, body, to=NOTIFY_EMAIL):
     """Send notification email via Gmail SMTP."""
@@ -232,7 +232,7 @@ def send_email(subject, body, to=NOTIFY_EMAIL):
     gmail_pass = os.environ.get('GMAIL_APP_PASSWORD')
 
     if not gmail_user or not gmail_pass:
-        print(f"  ⚠️  Email skipped (GMAIL_USER / GMAIL_APP_PASSWORD not set)")
+        print(f"  â ï¸  Email skipped (GMAIL_USER / GMAIL_APP_PASSWORD not set)")
         return
 
     msg = MIMEMultipart('alternative')
@@ -245,23 +245,23 @@ def send_email(subject, body, to=NOTIFY_EMAIL):
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
             server.login(gmail_user, gmail_pass)
             server.sendmail(gmail_user, to, msg.as_string())
-        print(f"  📧 Email sent: {subject}")
+        print(f"  ð§ Email sent: {subject}")
     except Exception as e:
-        print(f"  ⚠️  Email failed: {e}")
+        print(f"  â ï¸  Email failed: {e}")
 
 
 def build_email_body(processed, skipped, potm_retried, errors):
     """Build plain-text email body for the run summary."""
     now = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')
     lines = [
-        f"The Gentlemen's Game — Auto Scorer Run",
+        f"The Gentlemen's Game â Auto Scorer Run",
         f"Run time: {now}",
         f"{'='*50}",
         '',
     ]
 
     if processed:
-        lines.append(f"✅ MATCHES SCORED ({len(processed)}):")
+        lines.append(f"â MATCHES SCORED ({len(processed)}):")
         for m in processed:
             potm_note = f" | POTM: {m['potm']}" if m.get('potm') else ' | POTM: pending'
             lines.append(f"  Match {m['match_num']} (GW{m['gw']}): "
@@ -269,29 +269,29 @@ def build_email_body(processed, skipped, potm_retried, errors):
         lines.append('')
 
     if potm_retried:
-        lines.append(f"🔁 POTM RETRIES RESOLVED ({len(potm_retried)}):")
+        lines.append(f"ð POTM RETRIES RESOLVED ({len(potm_retried)}):")
         for m in potm_retried:
             lines.append(f"  Match {m['match_num']}: {m['potm']}")
         lines.append('')
 
     if skipped:
-        lines.append(f"⏭️  ALREADY SCORED (skipped): {', '.join(f'Match {n}' for n in skipped)}")
+        lines.append(f"â­ï¸  ALREADY SCORED (skipped): {', '.join(f'Match {n}' for n in skipped)}")
         lines.append('')
 
     if errors:
-        lines.append(f"❌ ERRORS ({len(errors)}):")
+        lines.append(f"â ERRORS ({len(errors)}):")
         for e in errors:
             lines.append(f"  Match {e['match_num']}: {e['error']}")
         lines.append('')
 
-    lines.append('─'*50)
+    lines.append('â'*50)
     lines.append('View the leaderboard: https://thegentlemensgame2026.web.app')
     return '\n'.join(lines)
 
 
-# ─────────────────────────────────────────────────────────────
+# âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 # CORE PIPELINE
-# ─────────────────────────────────────────────────────────────
+# âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 def run_daily_pipeline(db):
     """
@@ -303,7 +303,7 @@ def run_daily_pipeline(db):
     5. Send email summary
     """
     print(f"\n{'='*60}")
-    print(f"🏏 THE GENTLEMEN'S GAME — AUTO SCORER")
+    print(f"ð THE GENTLEMEN'S GAME â AUTO SCORER")
     print(f"{'='*60}\n")
 
     scored_nums  = get_scored_match_nums(db)
@@ -313,10 +313,10 @@ def run_daily_pipeline(db):
     if not espn_matches:
         print("  No completed matches returned from ESPN API.")
         send_email(
-            "GG Auto Scorer — No matches found",
+            "GG Auto Scorer â No matches found",
             "ESPN API returned no completed matches. Check the schedule."
         )
-        return True  # Not an error — just nothing to do today
+        return True  # Not an error â just nothing to do today
 
     espn_cache = get_espn_cache(db)
 
@@ -328,17 +328,17 @@ def run_daily_pipeline(db):
     for m in espn_matches:
         match_num = m['match_num']
         if match_num is None:
-            print(f"  ⚠️  Could not determine match number for {m['match_slug']} — skipping")
+            print(f"  â ï¸  Could not determine match number for {m['match_slug']} â skipping")
             continue
 
         if match_num in scored_nums:
             skipped.append(match_num)
-            print(f"  ⏭️  Match {match_num} already scored — skipping")
+            print(f"  â­ï¸  Match {match_num} already scored â skipping")
             continue
 
         gw = m['gw'] or MATCH_NUM_TO_GW.get(match_num)
-        print(f"\n{'─'*50}")
-        print(f"  Processing Match {match_num} — GW{gw}: {m['home']} vs {m['away']}")
+        print(f"\n{'â'*50}")
+        print(f"  Processing Match {match_num} â GW{gw}: {m['home']} vs {m['away']}")
 
         try:
             fetch_result = fetch_match_stats(
@@ -368,19 +368,19 @@ def run_daily_pipeline(db):
 
         except Exception as e:
             tb = traceback.format_exc()
-            print(f"  ❌ Error processing Match {match_num}: {e}\n{tb}")
+            print(f"  â Error processing Match {match_num}: {e}\n{tb}")
             errors.append({'match_num': match_num, 'error': str(e)})
 
     # Retry POTM for pending matches
     pending_nums = get_potm_pending_matches(db)
     if pending_nums:
-        print(f"\n  🔁 Retrying POTM for {len(pending_nums)} pending match(es): {pending_nums}")
+        print(f"\n  ð Retrying POTM for {len(pending_nums)} pending match(es): {pending_nums}")
         # Build slug lookup from ESPN matches
         slug_map = {m['match_num']: m for m in espn_matches if m['match_num']}
         for pnum in pending_nums:
             entry = slug_map.get(pnum)
             if not entry:
-                print(f"  ⚠️  No ESPN data for pending Match {pnum}")
+                print(f"  â ï¸  No ESPN data for pending Match {pnum}")
                 continue
             success = retry_potm_for_match(
                 db, pnum, entry['match_id'], entry['match_slug'], espn_cache
@@ -389,7 +389,7 @@ def run_daily_pipeline(db):
                 potm_retried.append({'match_num': pnum, 'potm': '(resolved)'})
 
     # Email summary
-    subject = f"GG Scorer — {len(processed)} scored, {len(errors)} error(s)"
+    subject = f"GG Scorer â {len(processed)} scored, {len(errors)} error(s)"
     body    = build_email_body(processed, skipped, potm_retried, errors)
     send_email(subject, body)
 
@@ -419,6 +419,14 @@ def run_single_match(db, match_url):
     num_m = re.search(r'(\d+)(?:st|nd|rd|th)-match', match_slug)
     match_num = int(num_m.group(1)) if num_m else None
 
+    # Playoff URL pattern detection (qualifier-1, eliminator, qualifier-2, final)
+    if not match_num:
+        playoff_patterns = {'qualifier-1': 71, 'eliminator': 72, 'qualifier-2': 73, 'final': 74}
+        for pattern, num in playoff_patterns.items():
+            if pattern in match_slug.lower():
+                match_num = num
+                break
+
     if not match_num:
         # Try teams from slug
         slug_lower  = match_slug.lower().replace('-', ' ')
@@ -436,7 +444,7 @@ def run_single_match(db, match_url):
         raise ValueError(f"Could not determine match number from slug: {match_slug}")
 
     gw = MATCH_NUM_TO_GW.get(match_num)
-    print(f"\n  Manual score: Match {match_num} (GW{gw}) — {match_slug}")
+    print(f"\n  Manual score: Match {match_num} (GW{gw}) â {match_slug}")
 
     espn_cache   = get_espn_cache(db)
     fetch_result = fetch_match_stats(series_slug, match_slug)
@@ -450,12 +458,12 @@ def run_single_match(db, match_url):
         fetch_result,
     )
 
-    print(f"\n  ✅ Match {match_num} manually scored and saved.")
+    print(f"\n  â Match {match_num} manually scored and saved.")
 
 
-# ─────────────────────────────────────────────────────────────
+# âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 # ENTRY POINT
-# ─────────────────────────────────────────────────────────────
+# âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 def main():
     parser = argparse.ArgumentParser(description='GG Auto Scorer')
