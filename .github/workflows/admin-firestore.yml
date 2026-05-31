@@ -1,0 +1,25 @@
+name: Admin Firestore Update
+
+on:
+  workflow_dispatch:
+    inputs:
+      python_code:
+        description: 'Python code to execute'
+        required: true
+        type: string
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: pip install firebase-admin
+      - name: Run code
+        env:
+          FIREBASE_CREDENTIALS: ${{ secrets.FIREBASE_CREDENTIALS }}
+          PYTHON_CODE: ${{ github.event.inputs.python_code }}
+        run: python3 -c "$PYTHON_CODE"
