@@ -10,42 +10,30 @@ cred = credentials.Certificate(tmp_name)
 firebase_admin.initialize_app(cred)
 db = firestore.client()
 
-# List all documents in seasonConfig to find the right one
-print("seasonConfig documents:")
-for doc in db.collection("seasonConfig").stream():
-    print(f"  id={doc.id}, keys={list(doc.to_dict().keys())[:8]}")
+# --- Fix: Add Virat Kohli POTM +25 for match_74 ---
+# His score should be 158pts, needs to be 183pts (+25 POTM bonus)
+# Find him by checking matchBreakdowns for his name, or by score ~158
 
-# Try to find the config doc with manualSubs
-found_doc = None
-for doc in db.collection("seasonConfig").stream():
-    d = doc.to_dict()
-    if "manualSubs" in d or "currentGW" in d or "schedule" in d:
-        found_doc = doc.id
-        print(f"Found config doc: {doc.id}")
+m74_scores = db.collection("matchScores").document("match_74").get().to_dict() or {}
+print("match_74 all scores:")
+for pid, score in sorted(m74_scores.items(), key=lambda x: -x[1] if isinstance(x[1], (int,float)) else 0):
+    print(f"  {pid}: {score}")
+
+# Also check matchBreakdowns for name lookup
+mb74 = db.collection("matchBreakdowns").document("match_74").get().to_dict() or {}
+print("\nmatchBreakdowns match_74 keys:", list(mb74.keys())[:10])
+# Look for virat/kohli in breakdown data
+for pid, data in mb74.items():
+    if isinstance(data, dict):
+        name = str(data.get("name","")).lower()
+        if "virat" in name or "kohli" in name:
+            print(f"FOUND Virat Kohli: pid={pid}, data={data}")
+
+# Also check players collection
+print("\nSearching players collection for Virat Kohli...")
+for pdoc in db.collection("players").stream():
+    d = pdoc.to_dict()
+    name = str(d.get("name","")).lower()
+    if "virat" in name or "kohli" in name:
+        print(f"FOUND: id={pdoc.id}, data={d}")
         break
-
-# If no doc found, try common IDs
-if not found_doc:
-    for doc_id in ["config", "season", "2026", "main", "settings"]:
-        d = db.collection("seasonConfig").document(doc_id).get().to_dict()
-        if d:
-            found_doc = doc_id
-            print(f"Found at ID: {doc_id}, keys: {list(d.keys())[:8]}")
-            break
-
-if found_doc:
-    # Add manual sub
-    ref = db.collection("seasonConfig").document(found_doc)
-    existing = ref.get().to_dict() or {}
-    manual_subs = existing.get("manualSubs", {})
-    manual_subs["mosquitoes_gw2"] = [99]
-    ref.set({"manualSubs": manual_subs}, merge=True)
-    print(f"DONE: set manualSubs.mosquitoes_gw2=[99] in {found_doc}")
-else:
-    print("ERROR: no seasonConfig document found")
-
-# Also print match_74 scores
-m74_data = db.collection("matchScores").document("match_74").get().to_dict() or {}
-print("\nmatch_74 top scores:")
-for pid, score in sorted(m74_data.items(), key=lambda x: -x[1] if isinstance(x[1], (int,float)) else 0)[:15]:
-    print(f"  player_id={pid}: {score}")
